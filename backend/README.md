@@ -143,6 +143,47 @@ Rules that live in `EmployeeService`:
 - Deleting an employee removes their leave requests first, in the same transaction — the
   `leaves.employee_id` foreign key is non-null, so the database would otherwise refuse.
 
+## Leave requests
+
+| Method | Path | Access | Purpose |
+|---|---|---|---|
+| GET | `/api/leaves` | any signed-in user | Admin sees every request, an employee sees only their own. |
+| GET | `/api/leaves/{id}` | owner or ADMIN | One request. |
+| POST | `/api/leaves` | any signed-in user | Apply for leave. |
+| PUT | `/api/leaves/{id}` | owner, while PENDING | Change the dates or reason. |
+| DELETE | `/api/leaves/{id}` | owner, while PENDING | Withdraw the request. |
+| PATCH | `/api/leaves/{id}/status` | ADMIN | Approve or reject: `{"status":"APPROVED"}`. |
+
+### Status lifecycle
+
+```
+          POST /api/leaves
+                 │
+                 ▼
+             PENDING ──── PATCH /status (admin) ──┬──> APPROVED
+          editable by                             └──> REJECTED
+          its owner                                    final — no further edits
+```
+
+### Rules enforced in `LeaveService`
+
+- **Owner and status are never taken from the request body.** A new request is always
+  filed for whoever sent the token, and always starts as `PENDING`. Posting
+  `{"status":"APPROVED","employee":{"id":1}}` is silently ignored — you cannot self-approve
+  or apply on somebody else's behalf.
+- **Employees are scoped to their own rows.** `GET /api/leaves` runs a different query
+  depending on the caller's role, so an employee never receives data they should not see.
+  Fetching another person's request by id gives 403.
+- **Only PENDING requests can be edited or withdrawn**, and only by their owner. Touching
+  a decided request gives 409.
+- **A decision is final.** Approving an already-decided request gives 409, and any status
+  other than `APPROVED` or `REJECTED` gives 400.
+- `endDate` before `startDate` gives 400.
+
+Approving is the one thing an employee can never do: `PATCH /{id}/status` carries
+`@PreAuthorize("hasRole('ADMIN')")`, so Spring Security rejects the call before the method
+body runs.
+
 ## Package layout
 
 ```
