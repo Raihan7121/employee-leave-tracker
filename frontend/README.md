@@ -99,6 +99,7 @@ stated rather than hidden.
 | `/login` | `app/login/page.tsx` | Email and password form. The only page that works without a session. |
 | `/dashboard` | `app/dashboard/page.tsx` | Counts of the leave requests the current user can see. |
 | `/dashboard/employees` | `app/dashboard/employees/page.tsx` | Admin only. Table of employees with add, edit and delete. |
+| `/dashboard/leaves` | `app/dashboard/leaves/page.tsx` | Apply for leave, and — as an admin — approve or reject. |
 
 `app/dashboard/layout.tsx` wraps every dashboard page with the nav bar and the sign-in
 check, so a new page under `app/dashboard/` is protected by existing.
@@ -148,6 +149,34 @@ through the problem-detail body into the dialog. The UI does not repeat the rule
 
 Deleting uses the browser's own `window.confirm` rather than a component, since it is a
 single yes/no question.
+
+## The leaves screen
+
+One page serves both roles, because `GET /api/leaves` already returns everything to an
+admin and only their own rows to an employee. The table needs no branch — **only the
+buttons differ**:
+
+| Row state | Employee sees | Admin sees |
+|---|---|---|
+| Their own, `PENDING` | Edit, Withdraw | Edit, Withdraw |
+| Someone else's, `PENDING` | *(not in their list at all)* | Approve, Reject |
+| Anything decided | nothing | nothing |
+
+A decided request has no actions at all, which matches the backend: it answers 409 to any
+attempt to change one. The UI is not enforcing that rule, only reflecting it.
+
+**Dates use `<input type="date">`.** The browser supplies the calendar picker, the keyboard
+handling and the `yyyy-mm-dd` string that the backend's `LocalDate` already expects — no
+date library needed. The `min` attribute on the end date is a convenience; the real check
+is `LeaveService.validateDates`, and its message is what the dialog displays.
+
+**Dates are formatted from their parts.** `formatDate` splits `"2026-12-01"` and passes
+year, month and day to `new Date(...)` separately, because `new Date("2026-12-01")` is
+parsed as *UTC* midnight and would render as the previous day for anyone west of
+Greenwich.
+
+Status is shown as a `Badge`, always with its text label — the colour is a second signal,
+never the only one.
 
 ### `useSession` and hydration
 
