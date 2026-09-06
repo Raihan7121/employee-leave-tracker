@@ -1,0 +1,8 @@
+# Local build output would be copied into the image and then immediately overwritten,
+# so keep it out of the build context entirely.
+build/
+.gradle/
+.idea/
+*.iml
+README.md
+HELP.md

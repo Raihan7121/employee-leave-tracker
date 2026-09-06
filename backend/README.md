@@ -199,6 +199,30 @@ com.millennium.leave_tracker
 A request travels **controller → service → repository → database** and the response comes
 back the same way.
 
+## Docker
+
+```bash
+docker build -t leave-backend .
+docker run -p 8080:8080 -e JWT_SECRET=some-secret-at-least-32-characters leave-backend
+```
+
+The `Dockerfile` has two stages:
+
+1. **build** — starts from a full JDK, copies the Gradle wrapper and the source, and runs
+   `./gradlew bootJar`. The wrapper downloads the exact Gradle version this project
+   expects, so nothing has to be preinstalled.
+2. **run** — starts from a JRE-only image and copies in just the jar.
+
+Nothing else crosses between the stages, so the shipped image contains no source code, no
+Gradle and no compiler. It runs as a non-root `app` user.
+
+`JWT_SECRET` overrides the development signing key from `application.properties`. Because
+the database is in-memory, the container needs no volume and keeps no state — stopping it
+throws the data away, and starting it seeds fresh data.
+
+Normally you would start this through the root `docker-compose.yml` alongside the frontend
+rather than on its own.
+
 ## Inspecting the database
 
 With the app running, open <http://localhost:8080/h2-console> and connect with:
