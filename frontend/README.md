@@ -98,6 +98,7 @@ stated rather than hidden.
 | `/` | `app/page.tsx` | Redirects to `/dashboard`. There is no public landing page. |
 | `/login` | `app/login/page.tsx` | Email and password form. The only page that works without a session. |
 | `/dashboard` | `app/dashboard/page.tsx` | Counts of the leave requests the current user can see. |
+| `/dashboard/employees` | `app/dashboard/employees/page.tsx` | Admin only. Table of employees with add, edit and delete. |
 
 `app/dashboard/layout.tsx` wraps every dashboard page with the nav bar and the sign-in
 check, so a new page under `app/dashboard/` is protected by existing.
@@ -123,6 +124,30 @@ Two details worth knowing:
 
 The nav only offers **Employees** to an admin, but that is a convenience, not a control:
 an employee who navigates there anyway gets 403s from the API.
+
+## The employees screen
+
+A table of every employee, plus add, edit and delete. Remember that an employee row **is**
+a login account, so creating one here creates a way to sign in.
+
+**One dialog does both jobs.** `editing` holds the employee being changed, or `null` when
+adding. The submit handler picks `POST /api/employees` or `PUT /api/employees/{id}` from
+that single piece of state, instead of there being two nearly identical dialogs.
+
+**The password field is blank when editing.** The backend reads a blank password as "keep
+the current one", so an admin can correct a name or department without resetting somebody's
+login. It is `required` only when adding.
+
+**Reloading after a change.** Each successful save or delete bumps a `reloadKey` counter
+that the load effect depends on, which re-runs the fetch. The alternative — patching the
+local array by hand — would drift from what the server actually stored.
+
+**Errors come from the backend.** Adding a duplicate email shows *"An employee with that
+email already exists"*: that sentence is written once in `EmployeeService.java` and travels
+through the problem-detail body into the dialog. The UI does not repeat the rule.
+
+Deleting uses the browser's own `window.confirm` rather than a component, since it is a
+single yes/no question.
 
 ### `useSession` and hydration
 
