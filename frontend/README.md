@@ -93,9 +93,47 @@ stated rather than hidden.
 
 ## Routes
 
-| Route | Purpose |
-|---|---|
-| `/login` | Email and password form. The only page that works without a session. |
+| Route | File | Purpose |
+|---|---|---|
+| `/` | `app/page.tsx` | Redirects to `/dashboard`. There is no public landing page. |
+| `/login` | `app/login/page.tsx` | Email and password form. The only page that works without a session. |
+| `/dashboard` | `app/dashboard/page.tsx` | Counts of the leave requests the current user can see. |
+
+`app/dashboard/layout.tsx` wraps every dashboard page with the nav bar and the sign-in
+check, so a new page under `app/dashboard/` is protected by existing.
+
+### How the route guard works
+
+```
+useSession()  →  loading?  →  render nothing (we don't know yet)
+                 no session →  router.replace("/login")
+                 session    →  render the nav bar and the page
+```
+
+Two details worth knowing:
+
+- **It renders nothing while loading.** Redirecting on the very first render would throw
+  out a perfectly good session, and rendering the dashboard would flash protected UI at a
+  signed-out visitor.
+- **This is not security.** The guard only hides UI. The token lives in `localStorage`,
+  which the server cannot read, so the check has to run in the browser — and anything
+  running in the browser can be bypassed. What actually protects the data is that the
+  backend re-checks the token and the role on *every* request. Knowing a URL gets you
+  nothing.
+
+The nav only offers **Employees** to an admin, but that is a convenience, not a control:
+an employee who navigates there anyway gets 403s from the API.
+
+### `useSession` and hydration
+
+`hooks/use-session.ts` uses React's `useSyncExternalStore` rather than reading
+`localStorage` in a `useEffect`. `localStorage` does not exist while Next.js prerenders on
+the server, so the hook reports the server value first and swaps to the browser value
+after hydration — no mismatched HTML, and no extra render pass.
+
+`getSession()` caches its parsed result against the raw string it came from, so repeated
+calls return the *same object*. Without that, every render would produce a new object and
+any effect depending on the session would loop forever.
 
 ## Demo accounts
 
