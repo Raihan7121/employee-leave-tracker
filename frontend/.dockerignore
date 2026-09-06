@@ -1,0 +1,10 @@
+# Keep the build context small and make sure the image never picks up host-built
+# artefacts or local secrets.
+node_modules
+.next
+.git
+.env*
+!.env.example
+README.md
+Dockerfile
+.dockerignore

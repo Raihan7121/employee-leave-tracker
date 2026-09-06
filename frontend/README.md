@@ -189,6 +189,34 @@ after hydration — no mismatched HTML, and no extra render pass.
 calls return the *same object*. Without that, every render would produce a new object and
 any effect depending on the session would loop forever.
 
+## Docker
+
+Normally you would start this through the root `docker-compose.yml` alongside the backend.
+On its own:
+
+```bash
+docker build --build-arg NEXT_PUBLIC_API_URL=http://localhost:8080 -t leave-frontend .
+docker run -p 3000:3000 leave-frontend
+```
+
+The `Dockerfile` has three stages — `deps` installs from the lockfile, `build` compiles,
+and `run` copies only Next.js's `standalone` output. `output: "standalone"` in
+`next.config.ts` makes Next bundle the server together with just the dependencies it
+actually imports, so the runtime image needs no `node_modules` and no source. It runs as a
+non-root user.
+
+### The one thing that is easy to get wrong
+
+`NEXT_PUBLIC_API_URL` must be a **build argument**, and it must be the address as the
+*browser* sees it:
+
+- `NEXT_PUBLIC_*` values are substituted into the JavaScript bundle at build time. Setting
+  one as a runtime `environment:` entry in compose has no effect — the value is already
+  compiled in.
+- The fetch runs in the browser, which is not on the Docker network. `http://backend:8080`
+  resolves only between containers; from the browser it is a name that does not exist. It
+  has to be `http://localhost:8080`, the published port on the host.
+
 ## Demo accounts
 
 Seeded by the backend on every start:

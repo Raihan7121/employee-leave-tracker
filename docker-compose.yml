@@ -1,0 +1,42 @@
+# Brings up the whole app with one command:
+#
+#   docker compose up --build
+#
+# Frontend on http://localhost:3000, backend on http://localhost:8080.
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      # Overrides the development signing key baked into application.properties.
+      JWT_SECRET: change-me-this-is-a-development-only-jwt-secret
+    healthcheck:
+      # The API docs endpoint is public, so it answers without a token.
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/v3/api-docs"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # IMPORTANT: this is the URL the *browser* uses, not one container talking to
+        # another. "http://backend:8080" would only resolve inside the Docker network, and
+        # the browser is not in it - so this has to be the address on the host.
+        #
+        # It is a build arg rather than an environment entry because NEXT_PUBLIC_* values
+        # are compiled into the JavaScript bundle, not read when the server starts.
+        NEXT_PUBLIC_API_URL: http://localhost:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        # Wait until the API actually answers, not merely until its container exists.
+        condition: service_healthy
+
+# No volumes: the database is in-memory and is reseeded on every start, so there is
+# nothing to persist.
