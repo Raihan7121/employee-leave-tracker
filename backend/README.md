@@ -119,6 +119,30 @@ TOKEN=$(curl -s -X POST localhost:8080/api/auth/login \
 curl localhost:8080/api/auth/me -H "Authorization: Bearer $TOKEN"
 ```
 
+## Employees
+
+| Method | Path | Access | Purpose |
+|---|---|---|---|
+| GET | `/api/employees` | any signed-in user | List everyone. |
+| GET | `/api/employees/{id}` | any signed-in user | One employee. |
+| POST | `/api/employees` | ADMIN | Create an employee (and their login). |
+| PUT | `/api/employees/{id}` | ADMIN | Update name, email, department, role, password. |
+| DELETE | `/api/employees/{id}` | ADMIN | Remove an employee and their leave requests. |
+
+Reads are open to any signed-in user because the leave screens need employee names.
+Writes carry `@PreAuthorize("hasRole('ADMIN')")`, which reads the `roles` claim out of the
+token — an employee calling `POST /api/employees` gets a 403.
+
+Rules that live in `EmployeeService`:
+
+- The submitted password is hashed with BCrypt before it is stored, on both create and update.
+- On update, a **blank password means "leave the current one alone"** so an admin can fix a
+  typo in a name without resetting somebody's login.
+- A duplicate email returns **409** rather than letting the unique constraint blow up as a 500.
+- A missing name, email or password returns **400**.
+- Deleting an employee removes their leave requests first, in the same transaction — the
+  `leaves.employee_id` foreign key is non-null, so the database would otherwise refuse.
+
 ## Package layout
 
 ```

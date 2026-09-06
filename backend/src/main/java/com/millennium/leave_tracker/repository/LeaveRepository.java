@@ -8,4 +8,7 @@ public interface LeaveRepository extends JpaRepository<Leave, Long> {
 
     /** Employees only ever see their own requests, so the query is scoped by owner. */
     List<Leave> findByEmployeeId(Long employeeId);
+
+    /** Clears the foreign key rows before an employee can be removed. */
+    void deleteByEmployeeId(Long employeeId);
 }
